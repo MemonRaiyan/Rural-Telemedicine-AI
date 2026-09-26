@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  gramcare-app:
+    build: .
+    container_name: gramcare_ai_platform
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - GRAMCARE_JWT_SECRET=gramcare_academic_btech_demo_secret_2026
+      - ABDM_ENV=sandbox
+    volumes:
+      - gramcare_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  gramcare_data:

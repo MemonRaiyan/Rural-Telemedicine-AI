@@ -1,0 +1,552 @@
+/* ============================================================
+   GramCare AI — Mobile-First Responsive Stylesheet
+   Optimized for rural mobile devices (Android low-end + iOS)
+   ============================================================ */
+
+/* ---- CSS Custom Properties ---- */
+:root {
+  --primary: #0f766e;       /* Teal-700 */
+  --primary-dark: #115e59;  /* Teal-800 */
+  --primary-deeper: #042f2e;/* Teal-950 */
+  --accent: #10b981;        /* Emerald-500 */
+  --bg: #f8fafc;            /* Slate-50 */
+  --surface: #ffffff;
+  --border: #f1f5f9;        /* Slate-100 */
+  --text: #1e293b;          /* Slate-800 */
+  --text-muted: #64748b;    /* Slate-500 */
+
+  /* Touch target minimum (WCAG 2.5.5) */
+  --touch-min: 44px;
+
+  /* Safe area insets (notched phones) */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ---- Reset & Base ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Smoother scrolling but respects reduced-motion */
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont,
+               'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent content from going under bottom nav on iOS notch devices */
+  padding-bottom: calc(5.5rem + var(--safe-bottom));
+  overscroll-behavior: contain;
+  /* Better tap highlight on Android */
+  -webkit-tap-highlight-color: rgba(15, 118, 110, 0.12);
+}
+
+/* ---- Accessibility ---- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sr-only.focus\:not-sr-only:focus {
+  position: absolute;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Global focus-visible ring (keyboard nav) */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Touch targets: minimum 44×44px */
+.touch-target {
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+/* Prevent double-tap zoom on buttons */
+button, [role="button"], select, a {
+  touch-action: manipulation;
+}
+
+/* ---- Single Page Section Switching ---- */
+.view-section {
+  display: none;
+  contain: layout style; /* performance isolation */
+}
+
+.view-section.active {
+  display: block;
+  animation: fadeSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Fade-in for initial app mount */
+.fade-in {
+  animation: fadeSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ---- Skeleton Loading (replaces spinners for rural UX) ---- */
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ---- Soft Cards ---- */
+.soft-card {
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
+  padding: 1.25rem;
+  margin-bottom: 0.75rem;
+  /* Defer off-screen rendering for long lists */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 100px;
+}
+
+/* Interactive card hover */
+.soft-card.interactive {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.soft-card.interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.12), 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.soft-card.interactive:active {
+  transform: scale(0.99);
+}
+
+/* ---- Gradient Header ---- */
+.gradient-bg {
+  background: linear-gradient(135deg, var(--primary-deeper) 0%, var(--primary) 100%);
+}
+
+/* ---- Buttons ---- */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  min-height: var(--touch-min);
+  touch-action: manipulation;
+  transition: background 0.15s ease, transform 0.1s ease;
+  width: 100%;
+}
+
+.btn-primary:hover   { background: var(--primary-dark); }
+.btn-primary:active  { transform: scale(0.98); }
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 12px;
+  border: 2px solid var(--primary);
+  cursor: pointer;
+  min-height: var(--touch-min);
+  touch-action: manipulation;
+  transition: background 0.15s ease;
+  width: 100%;
+}
+
+.btn-secondary:hover  { background: rgba(15, 118, 110, 0.07); }
+.btn-secondary:active { background: rgba(15, 118, 110, 0.14); }
+
+/* Loading spinner inside button */
+.btn-loading {
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.btn-loading::after {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.5);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-left: 0.5rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Form Elements ---- */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem; /* ≥16px prevents iOS zoom on focus */
+  font-family: inherit;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  background: white;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  min-height: var(--touch-min);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+}
+
+/* ---- Bottom Navigation ---- */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  /* Account for iOS home indicator */
+  padding-bottom: calc(0.5rem + var(--safe-bottom));
+  padding-top: 0.5rem;
+  z-index: 40;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  padding: 0.25rem 0.5rem;
+  /* Minimum touch area */
+  min-width: var(--touch-min);
+  min-height: 48px;
+  border-radius: 10px;
+  position: relative;
+}
+
+.nav-item.active {
+  color: var(--primary);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 0 0 4px 4px;
+}
+
+.nav-item i {
+  font-size: 1.15rem;
+  margin-bottom: 0.2rem;
+  display: block;
+}
+
+.nav-item:active {
+  opacity: 0.7;
+  transform: scale(0.94);
+  transition: transform 0.08s ease;
+}
+
+/* ---- Academic Footer ---- */
+.academic-footer {
+  padding-bottom: calc(0.25rem + var(--safe-bottom));
+  z-index: 30;
+  /* Render above bottom-nav padding but below nav itself */
+}
+
+/* The body pb-24 already accounts for the footer+nav stack */
+
+/* ---- Utility Classes ---- */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Horizontal scroll snap for carousels */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-snap-x > * {
+  scroll-snap-align: start;
+}
+
+/* ---- Status Badges ---- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.badge-success { background: #dcfce7; color: #166534; }
+.badge-warning { background: #fef9c3; color: #854d0e; }
+.badge-danger  { background: #fee2e2; color: #991b1b; }
+.badge-info    { background: #e0f2fe; color: #075985; }
+.badge-gray    { background: #f1f5f9; color: #475569; }
+
+/* ---- Emergency Alert (pulsing red) ---- */
+.emergency-pulse {
+  animation: emergencyPulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes emergencyPulse {
+  0%, 100% { background-color: #ef4444; }
+  50%       { background-color: #dc2626; }
+}
+
+/* ---- Toast Notifications ---- */
+#toast-container {
+  position: fixed;
+  bottom: calc(5.5rem + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+  width: calc(100% - 2rem);
+  max-width: 28rem;
+  pointer-events: none;
+}
+
+.toast {
+  background: #1e293b;
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toast.success { background: #065f46; }
+.toast.error   { background: #991b1b; }
+.toast.warning { background: #92400e; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---- Rural Mode (Low Bandwidth) ---- */
+.rural-mode-enabled img:not([src*="svg"]):not([alt=""]),
+.rural-mode-enabled #image-preview-img {
+  display: none !important;
+}
+
+.rural-mode-enabled * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.rural-mode-enabled .soft-card {
+  box-shadow: none !important;
+  border: 1px solid #cbd5e1 !important;
+  content-visibility: auto; /* keep for performance */
+}
+
+.rural-mode-enabled .gradient-bg {
+  background: var(--primary) !important;
+}
+
+.rural-mode-enabled .skeleton {
+  animation: none !important;
+  background: #e2e8f0;
+}
+
+/* ---- Consultation Room ---- */
+.consultation-chat {
+  height: 55vh;
+  min-height: 280px;
+  max-height: 420px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ---- Responsive breakpoints ---- */
+
+/* Small phones (≤375px) */
+@media (max-width: 375px) {
+  body { font-size: 14px; }
+  .soft-card { padding: 1rem; }
+}
+
+/* Tablet/Desktop — center the single-column SPA */
+@media (min-width: 640px) {
+  /* Show full Rural Mode label on wider screens */
+  #rural-mode-text { display: inline !important; }
+
+  /* Language selector: show full names */
+  #lang-selector option[value="en"]::after { content: 'glish'; }
+
+  /* Push main content away from side edges */
+  main#app-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  /* Two-column grid for doctor/camp cards on tablet */
+  .card-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  .card-grid-2 .soft-card {
+    margin-bottom: 0;
+  }
+}
+
+/* ---- Print styles (for health records export) ---- */
+@media print {
+  header, nav, footer, #install-banner, #offline-banner, #network-indicator,
+  #toast-container, .btn-primary, .btn-secondary {
+    display: none !important;
+  }
+  body {
+    padding: 0;
+    background: white;
+    color: black;
+    font-size: 12pt;
+  }
+  .soft-card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    page-break-inside: avoid;
+  }
+  main#app-container {
+    max-width: 100%;
+    padding: 0;
+  }
+}
+
+/* ---- Dark Mode (system preference) ---- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --border: #334155;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+  }
+  body { background-color: var(--bg); }
+  .soft-card { background: var(--surface); border-color: var(--border); }
+  input, textarea, select {
+    background: #1e293b;
+    border-color: #475569;
+    color: #e2e8f0;
+  }
+  input::placeholder, textarea::placeholder { color: #64748b; }
+}

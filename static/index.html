@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Mobile-first viewport with safe-area support -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <title>GramCare AI — Rural Telemedicine AI Platform (ABDM Sandbox)</title>
+    <meta name="description" content="AI-powered rural telemedicine platform with multilingual support, doctor ratings, health camp coordination, and ABDM-ready architecture.">
+
+    <!-- PWA / Mobile Meta Tags -->
+    <meta name="theme-color" content="#0f766e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GramCare AI">
+    <meta name="application-name" content="GramCare AI">
+    <meta name="msapplication-TileColor" content="#0f766e">
+    <meta name="format-detection" content="telephone=no">
+
+    <!-- Open Graph (for sharing) -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="GramCare AI — Rural Telemedicine">
+    <meta property="og:description" content="Accessible telemedicine for rural India — ABDM Sandbox prototype.">
+    <meta property="og:image" content="/static/icon-512.png">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+
+    <!-- Favicon / Icons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>">
+    <link rel="apple-touch-icon" sizes="192x192" href="/static/icon-192.png">
+
+    <!-- Fonts: preconnect first, then load (non-blocking swap) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    </noscript>
+
+    <!-- Tailwind CSS CDN (fetchpriority: high for LCP) -->
+    <script src="https://cdn.tailwindcss.com" fetchpriority="high"></script>
+
+    <!-- Font Awesome Icons (deferred via media trick) -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    </noscript>
+
+    <!-- App CSS (critical path) -->
+    <link rel="stylesheet" href="/static/style.css">
+
+    <!-- iOS Splash Screens (basic) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+</head>
+<body class="pb-24 text-gray-800 bg-slate-50 min-h-screen">
+
+    <!-- Skip to content (a11y) -->
+    <a href="#app-container"
+       class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-teal-700 text-white px-4 py-2 rounded-lg font-semibold">
+        Skip to main content
+    </a>
+
+    <!-- Top Sticky Healthcare Navigation Bar -->
+    <header class="gradient-bg text-white px-4 py-3.5 sticky top-0 z-40 shadow-sm border-b border-teal-800/20"
+            style="padding-top: max(0.875rem, env(safe-area-inset-top));">
+        <div class="max-w-lg mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2 cursor-pointer touch-target" onclick="app.routeUserToDashboard()" role="button" tabindex="0" aria-label="GramCare AI Home">
+                <div class="w-9 h-9 rounded-xl bg-emerald-400/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
+                    <i class="fas fa-heartbeat text-base" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-extrabold tracking-tight flex items-center leading-none" data-i18n="app_name">
+                        GramCare AI
+                    </h1>
+                    <span class="text-[9px] text-teal-200 uppercase font-bold tracking-wider">Rural Telehealth Network</span>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <!-- Rural Mode Switch -->
+                <button id="btn-rural-mode"
+                        class="text-[11px] bg-white/15 hover:bg-white/25 active:bg-white/35 px-2.5 py-1.5 rounded-xl border border-white/25 flex items-center transition touch-target"
+                        onclick="app.toggleRuralMode()"
+                        aria-label="Toggle Rural Mode"
+                        aria-pressed="false">
+                    <i class="fas fa-signal mr-1 text-[10px]" aria-hidden="true"></i>
+                    <span id="rural-mode-text" data-i18n="rural_mode" class="hidden sm:inline">Rural Mode</span>
+                    <span class="sm:hidden">2G</span>
+                </button>
+
+                <!-- Language Selector -->
+                <select id="lang-selector"
+                        class="text-[11px] bg-white/15 hover:bg-white/25 rounded-xl px-2.5 py-1.5 border border-white/25 text-white outline-none cursor-pointer touch-target"
+                        onchange="app.changeLanguage(this.value)"
+                        aria-label="Select Language">
+                    <option value="en" class="text-gray-900">EN</option>
+                    <option value="hi" class="text-gray-900">हिन्दी</option>
+                    <option value="gu" class="text-gray-900">ગુજ</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Dynamic User Sub-header -->
+        <div id="user-greeting" class="max-w-lg mx-auto mt-2 pt-2 border-t border-white/10 text-xs hidden">
+            <!-- Populated via app.js -->
+        </div>
+    </header>
+
+    <!-- Low-Bandwidth 2G Network Status Banner -->
+    <div id="network-indicator" class="hidden bg-amber-100 text-amber-900 text-xs px-4 py-2 border-b border-amber-200" role="status" aria-live="polite">
+        <div class="max-w-lg mx-auto flex items-center">
+            <i class="fas fa-bolt text-amber-600 mr-2 shrink-0" aria-hidden="true"></i>
+            <span class="text-[11px]" data-i18n="rural_network_alert">2G / Weak connection detected. Compressed UI and audio-first mode active.</span>
+        </div>
+    </div>
+
+    <!-- Install App Banner (PWA) -->
+    <div id="install-banner" class="hidden bg-teal-700 text-white text-sm px-4 py-3 border-b border-teal-800" role="complementary" aria-label="Install App">
+        <div class="max-w-lg mx-auto flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-download text-teal-200 shrink-0" aria-hidden="true"></i>
+                <span class="text-xs font-medium">Install GramCare for offline access</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button id="btn-install-pwa"
+                        class="bg-white text-teal-800 text-xs font-bold px-3 py-1.5 rounded-lg active:opacity-80 touch-target"
+                        onclick="app.installPWA()">
+                    Install
+                </button>
+                <button class="text-teal-200 text-xs touch-target px-1" onclick="document.getElementById('install-banner').classList.add('hidden')" aria-label="Dismiss install banner">
+                    ✕
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offline Status Banner -->
+    <div id="offline-banner" class="hidden bg-red-600 text-white text-xs px-4 py-2 text-center font-semibold" role="alert">
+        <i class="fas fa-wifi-slash mr-1" aria-hidden="true"></i> You are offline — showing cached data only
+    </div>
+
+    <!-- Main Mobile-First Container (max-w-lg centers on desktop, fills on mobile) -->
+    <main id="app-container" class="p-4 max-w-lg mx-auto fade-in" tabindex="-1">
+        <!-- All Views Rendered Dynamically From TEMPLATES in templates.js -->
+        <div id="dynamic-views" role="main"></div>
+    </main>
+
+    <!-- Bottom Navigation Bar (Patient Role) -->
+    <nav id="bottom-nav-patient" class="bottom-nav hidden border-t border-gray-200 bg-white/95 backdrop-blur-md" role="navigation" aria-label="Patient Navigation">
+        <div class="nav-item active" onclick="app.navigate('patient-home')" role="button" tabindex="0" aria-label="Home">
+            <i class="fas fa-home" aria-hidden="true"></i>
+            <span data-i18n="nav_home">Home</span>
+        </div>
+        <div class="nav-item" onclick="app.navigate('doctor-search')" role="button" tabindex="0" aria-label="Find Doctors">
+            <i class="fas fa-user-md" aria-hidden="true"></i>
+            <span data-i18n="nav_doctors">Doctors</span>
+        </div>
+        <div class="nav-item" onclick="app.navigate('health-camps')" role="button" tabindex="0" aria-label="Health Camps">
+            <i class="fas fa-campground" aria-hidden="true"></i>
+            <span data-i18n="nav_camps">Camps</span>
+        </div>
+        <div class="nav-item" onclick="app.navigate('health-records')" role="button" tabindex="0" aria-label="Health Records">
+            <i class="fas fa-file-medical" aria-hidden="true"></i>
+            <span data-i18n="nav_records">Records</span>
+        </div>
+    </nav>
+
+    <!-- Bottom Navigation Bar (Doctor Role) -->
+    <nav id="bottom-nav-doctor" class="bottom-nav hidden border-t border-gray-200 bg-white/95 backdrop-blur-md" role="navigation" aria-label="Doctor Navigation">
+        <div class="nav-item active" onclick="app.navigate('doctor-home')" role="button" tabindex="0" aria-label="My Queue">
+            <i class="fas fa-stethoscope" aria-hidden="true"></i>
+            <span data-i18n="nav_dashboard">Queue</span>
+        </div>
+        <div class="nav-item" onclick="app.navigate('health-camps')" role="button" tabindex="0" aria-label="Health Camps">
+            <i class="fas fa-campground" aria-hidden="true"></i>
+            <span data-i18n="nav_camps">Camps</span>
+        </div>
+        <div class="nav-item" onclick="app.logout()" role="button" tabindex="0" aria-label="Log out">
+            <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+            <span data-i18n="btn_logout">Logout</span>
+        </div>
+    </nav>
+
+    <!-- Academic Demonstration Footer -->
+    <footer class="fixed bottom-0 left-0 right-0 py-1 bg-white/90 border-t border-gray-200 text-center text-[10px] text-gray-500 z-30 pointer-events-none academic-footer">
+        <p class="font-semibold text-gray-600" data-i18n="academic_tag">Academic Prototype — Engineering Project II</p>
+        <p class="opacity-75" data-i18n="abdm_tag">ABDM integration shown using prototype/sandbox architecture where applicable.</p>
+    </footer>
+
+    <!-- Scripts: templates first (data), then app logic -->
+    <script src="/static/templates.js" defer></script>
+    <script src="/static/app.js" defer></script>
+</body>
+</html>

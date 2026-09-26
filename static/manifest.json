@@ -1,0 +1,43 @@
+{
+  "name": "GramCare AI — Rural Telemedicine",
+  "short_name": "GramCare",
+  "description": "AI-powered rural telemedicine platform integrated with ABDM (Academic Prototype)",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#042f2e",
+  "theme_color": "#0f766e",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["health", "medical"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "AI Triage",
+      "short_name": "Triage",
+      "description": "Start an AI symptom assessment",
+      "url": "/?view=ai-triage",
+      "icons": [{"src": "/static/icon-192.png", "sizes": "192x192"}]
+    },
+    {
+      "name": "Find Doctors",
+      "short_name": "Doctors",
+      "description": "Search and book a consultation",
+      "url": "/?view=doctor-search",
+      "icons": [{"src": "/static/icon-192.png", "sizes": "192x192"}]
+    }
+  ]
+}
