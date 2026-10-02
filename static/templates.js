@@ -165,9 +165,14 @@ const TEMPLATES = {
                 <span class="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Ayushman Bharat (ABDM Sandbox)</span>
                 <h4 class="font-bold text-base mt-0.5" id="patient-abha-name">Ramesh Patel</h4>
             </div>
-            <span id="patient-abha-badge" class="bg-emerald-400 text-teal-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center">
-                <i class="fas fa-check-circle mr-1"></i> LINKED
-            </span>
+            <div class="flex items-center space-x-1.5">
+                <button class="bg-white/20 hover:bg-white/30 text-[10px] px-2 py-0.5 rounded text-white font-semibold" onclick="app.openPatientProfileEdit()">
+                    <i class="fas fa-edit mr-0.5"></i> Edit Profile
+                </button>
+                <span id="patient-abha-badge" class="bg-emerald-400 text-teal-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center">
+                    <i class="fas fa-check-circle mr-1"></i> LINKED
+                </span>
+            </div>
         </div>
         <div class="flex items-center justify-between text-xs font-mono opacity-90 mt-1 mb-3">
             <span id="patient-abha-id">14-2394-3948-2938</span>
@@ -503,7 +508,7 @@ const TEMPLATES = {
                 </div>
 
                 <!-- Self View (PIP) -->
-                <div class="absolute bottom-4 right-4 w-28 h-36 bg-gray-800 rounded-xl border border-gray-700 shadow-xl overflow-hidden flex flex-col items-center justify-center">
+                <div id="self-view-container" class="absolute bottom-4 right-4 w-28 h-36 bg-gray-800 rounded-xl border border-gray-700 shadow-xl overflow-hidden flex flex-col items-center justify-center">
                     <i class="fas fa-user text-2xl text-gray-600 mb-1"></i>
                     <span class="text-[9px] text-gray-400">You (Self)</span>
                 </div>
@@ -773,26 +778,31 @@ const TEMPLATES = {
     <div class="mb-4 flex items-center justify-between">
         <div>
             <h2 class="font-bold text-base text-gray-800">Doctor Clinical Dashboard</h2>
-            <p class="text-xs text-teal-700 font-semibold" id="doc-greeting">Dr. Anjali Patel (General Physician)</p>
+            <p class="text-xs text-teal-700 font-semibold" id="doc-greeting">Doctor Dashboard</p>
         </div>
-        <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center">
-            <i class="fas fa-check-circle mr-1"></i> VERIFIED GMC
-        </span>
+        <div class="flex items-center space-x-2">
+            <button class="bg-teal-50 text-teal-700 border border-teal-200 text-xs px-2.5 py-1 rounded-lg font-semibold hover:bg-teal-100" onclick="app.openDoctorProfileEdit()">
+                <i class="fas fa-user-edit mr-1"></i> Edit Profile
+            </button>
+            <span id="doc-verification-badge" class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center">
+                <i class="fas fa-check-circle mr-1"></i> VERIFIED
+            </span>
+        </div>
     </div>
 
     <!-- Metric Cards -->
     <div class="grid grid-cols-2 gap-3 mb-4">
         <div class="soft-card !p-3.5 bg-teal-50 border border-teal-200">
             <p class="text-[10px] text-teal-700 font-bold uppercase tracking-wider">Today's Consultations</p>
-            <h3 class="text-2xl font-black text-teal-900 mt-1">12</h3>
-            <p class="text-[10px] text-teal-600 mt-0.5">3 in active queue</p>
+            <h3 class="text-2xl font-black text-teal-900 mt-1" id="doc-metric-today">--</h3>
+            <p class="text-[10px] text-teal-600 mt-0.5" id="doc-metric-queue-text">Patient Queue Live</p>
         </div>
         <div class="soft-card !p-3.5 bg-blue-50 border border-blue-200">
             <p class="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Doctor Trust Score</p>
-            <h3 class="text-2xl font-black text-blue-900 mt-1 flex items-center">
-                <i class="fas fa-star text-yellow-400 mr-1 text-lg"></i> 4.8
+            <h3 class="text-2xl font-black text-blue-900 mt-1 flex items-center" id="doc-metric-rating">
+                <i class="fas fa-star text-yellow-400 mr-1 text-lg"></i> 5.0
             </h3>
-            <p class="text-[10px] text-blue-600 mt-0.5">126 verified reviews</p>
+            <p class="text-[10px] text-blue-600 mt-0.5" id="doc-metric-reviews-count">Verified Reviews</p>
         </div>
     </div>
 
@@ -800,7 +810,7 @@ const TEMPLATES = {
     <div class="mb-4">
         <div class="flex justify-between items-center mb-2">
             <h3 class="font-bold text-sm text-gray-800">Waiting Patient Queue</h3>
-            <span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full" id="doc-queue-badge">Live</span>
+            <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full" id="doc-queue-badge">0 Total</span>
         </div>
         <div id="doctor-queue-list" class="space-y-3">
             <!-- Dynamic Queue Cards -->
@@ -816,6 +826,126 @@ const TEMPLATES = {
         <div id="doc-camp-requests-list" class="space-y-2 text-xs">
             <!-- Dynamic Requests -->
         </div>
+    </div>
+  `,
+
+  // 11b. DOCTOR PROFILE EDIT VIEW
+  'doctor-profile-edit': `
+    <div class="mb-4 flex items-center justify-between">
+        <button class="text-teal-700 text-sm font-semibold flex items-center" onclick="app.navigate('doctor-home')">
+            <i class="fas fa-arrow-left mr-1.5"></i> Back to Dashboard
+        </button>
+        <h2 class="font-bold text-base text-gray-800">Edit Professional Profile</h2>
+        <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">Doctor</span>
+    </div>
+
+    <div class="soft-card">
+        <form onsubmit="app.saveDoctorProfile(event)" class="space-y-3">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Full Name</label>
+                <input type="text" id="edit-doc-name" required class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Qualification</label>
+                    <input type="text" id="edit-doc-qual" placeholder="MBBS, MD" required class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Specialization</label>
+                    <input type="text" id="edit-doc-spec" placeholder="General Physician" required class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Experience (Years)</label>
+                    <input type="number" id="edit-doc-exp" min="0" max="60" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Consultation Fee (₹)</label>
+                    <input type="number" id="edit-doc-fee" min="0" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Languages Spoken (comma-separated)</label>
+                <input type="text" id="edit-doc-languages" placeholder="English, Hindi, Gujarati" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Hospital / Clinic Affiliation</label>
+                <input type="text" id="edit-doc-hospital" placeholder="Primary Health Center / Hospital" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Professional Bio</label>
+                <textarea id="edit-doc-bio" rows="3" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs" placeholder="Dedicated healthcare professional providing tele-care to rural communities..."></textarea>
+            </div>
+            <button type="submit" id="btn-save-doc-profile" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm transition">
+                <i class="fas fa-save mr-1.5"></i> Save Profile Changes
+            </button>
+        </form>
+    </div>
+  `,
+
+  // 11c. PATIENT PROFILE EDIT VIEW
+  'patient-profile-edit': `
+    <div class="mb-4 flex items-center justify-between">
+        <button class="text-teal-700 text-sm font-semibold flex items-center" onclick="app.navigate('patient-home')">
+            <i class="fas fa-arrow-left mr-1.5"></i> Back to Dashboard
+        </button>
+        <h2 class="font-bold text-base text-gray-800">Edit Health Profile</h2>
+        <span class="bg-teal-100 text-teal-800 text-[10px] font-bold px-2 py-0.5 rounded-full">Patient</span>
+    </div>
+
+    <div class="soft-card">
+        <form onsubmit="app.savePatientProfile(event)" class="space-y-3">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Full Name</label>
+                <input type="text" id="edit-pat-name" required class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Age</label>
+                    <input type="number" id="edit-pat-age" min="1" max="120" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Gender</label>
+                    <select id="edit-pat-gender" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Village</label>
+                    <input type="text" id="edit-pat-village" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">District</label>
+                    <input type="text" id="edit-pat-district" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Blood Group</label>
+                    <input type="text" id="edit-pat-blood" placeholder="e.g. B+, O+" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Emergency Contact</label>
+                    <input type="tel" id="edit-pat-emergency" placeholder="+91..." class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Known Allergies</label>
+                <input type="text" id="edit-pat-allergies" placeholder="e.g. None, Penicillin, Peanuts" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Chronic Health Conditions</label>
+                <input type="text" id="edit-pat-chronic" placeholder="e.g. Diabetes, Hypertension, Asthma" class="w-full border border-gray-300 rounded-lg p-2.5 text-xs">
+            </div>
+            <button type="submit" id="btn-save-pat-profile" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm transition">
+                <i class="fas fa-save mr-1.5"></i> Save Health Profile
+            </button>
+        </form>
     </div>
   `,
 

@@ -533,20 +533,3 @@ textarea::placeholder {
 }
 
 /* ---- Dark Mode (system preference) ---- */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f172a;
-    --surface: #1e293b;
-    --border: #334155;
-    --text: #e2e8f0;
-    --text-muted: #94a3b8;
-  }
-  body { background-color: var(--bg); }
-  .soft-card { background: var(--surface); border-color: var(--border); }
-  input, textarea, select {
-    background: #1e293b;
-    border-color: #475569;
-    color: #e2e8f0;
-  }
-  input::placeholder, textarea::placeholder { color: #64748b; }
-}

@@ -6,7 +6,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Request
 from pydantic import BaseModel, EmailStr
 
-from backend.app.database.database import query_one, query_all, execute_query
+from backend.app.database.database import query_one, query_all, execute_query, get_db
 from backend.app.auth.auth import (
     hash_password, verify_password, create_access_token,
     get_current_user, get_optional_user, require_role, log_audit
@@ -41,6 +41,37 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class DoctorProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    qualification: Optional[str] = None
+    specialization: Optional[str] = None
+    experience_years: Optional[int] = None
+    languages_spoken: Optional[List[str]] = None
+    consultation_fee: Optional[float] = None
+    hospital_affiliation: Optional[str] = None
+    bio: Optional[str] = None
+    availability_schedule: Optional[List[str]] = None
+    avatar_emoji: Optional[str] = None
+
+class PatientProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    village: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    pin_code: Optional[str] = None
+    emergency_contact: Optional[str] = None
+    blood_group: Optional[str] = None
+    allergies: Optional[str] = None
+    chronic_conditions: Optional[str] = None
+    preferred_language: Optional[str] = None
+
+class AppointmentStatusUpdate(BaseModel):
+    status: str # CONFIRMED, CANCELLED, REJECTED, COMPLETED
 
 class TriageInput(BaseModel):
     symptoms: str
@@ -130,7 +161,7 @@ async def register(req: RegisterRequest):
         license_num = req.license_number or f"MED-REG-{secrets.token_hex(3).upper()}"
         execute_query("""
             INSERT INTO doctors (id, user_id, qualification, license_number, specialization, consultation_fee, verification_status)
-            VALUES (?, ?, ?, ?, ?, ?, 'VERIFIED')
+            VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
         """, (doc_id, user_id, req.qualification, license_num, req.specialization, req.consultation_fee))
     elif req.role.upper() == "HOSPITAL":
         org_id = f"org_{secrets.token_hex(6)}"
@@ -148,6 +179,133 @@ async def register(req: RegisterRequest):
         "token_type": "bearer",
         "user": {"id": user_id, "email": req.email, "role": req.role.upper(), "full_name": req.full_name}
     }
+
+# ----------------- PROFILE MANAGEMENT -----------------
+@api_router.patch("/doctors/profile")
+async def update_doctor_profile(req: DoctorProfileUpdate, user: dict = Depends(require_role(["DOCTOR"]))):
+    doc = query_one("SELECT id FROM doctors WHERE user_id = ?", (user["id"],))
+    if not doc:
+        raise HTTPException(status_code=404, detail="Doctor profile not found.")
+    
+    if req.full_name or req.phone:
+        if req.full_name and req.phone:
+            execute_query("UPDATE users SET full_name = ?, phone = ? WHERE id = ?", (req.full_name, req.phone, user["id"]))
+        elif req.full_name:
+            execute_query("UPDATE users SET full_name = ? WHERE id = ?", (req.full_name, user["id"]))
+        elif req.phone:
+            execute_query("UPDATE users SET phone = ? WHERE id = ?", (req.phone, user["id"]))
+            
+    updates = []
+    params = []
+    if req.qualification is not None:
+        updates.append("qualification = ?")
+        params.append(req.qualification)
+    if req.specialization is not None:
+        updates.append("specialization = ?")
+        params.append(req.specialization)
+    if req.experience_years is not None:
+        updates.append("experience_years = ?")
+        params.append(req.experience_years)
+    if req.languages_spoken is not None:
+        updates.append("languages_spoken = ?")
+        params.append(json.dumps(req.languages_spoken))
+    if req.consultation_fee is not None:
+        updates.append("consultation_fee = ?")
+        params.append(req.consultation_fee)
+    if req.hospital_affiliation is not None:
+        updates.append("hospital_affiliation = ?")
+        params.append(req.hospital_affiliation)
+    if req.bio is not None:
+        updates.append("bio = ?")
+        params.append(req.bio)
+    if req.availability_schedule is not None:
+        updates.append("availability_schedule = ?")
+        params.append(json.dumps(req.availability_schedule))
+    if req.avatar_emoji is not None:
+        updates.append("avatar_emoji = ?")
+        params.append(req.avatar_emoji)
+        
+    if updates:
+        params.append(doc["id"])
+        execute_query(f"UPDATE doctors SET {', '.join(updates)} WHERE id = ?", params)
+        
+    log_audit(user["id"], "DOCTOR_PROFILE_UPDATE", "DOCTOR", f"Doctor profile {doc['id']} updated.")
+    
+    updated_doc = query_one("""
+        SELECT d.*, u.full_name, u.email, u.phone
+        FROM doctors d
+        JOIN users u ON d.user_id = u.id
+        WHERE d.id = ?
+    """, (doc["id"],))
+    return {"success": True, "message": "Doctor profile updated successfully.", "data": updated_doc}
+
+@api_router.patch("/patients/profile")
+async def update_patient_profile(req: PatientProfileUpdate, user: dict = Depends(require_role(["PATIENT"]))):
+    pat = query_one("SELECT id FROM patients WHERE user_id = ?", (user["id"],))
+    if not pat:
+        raise HTTPException(status_code=404, detail="Patient profile not found.")
+        
+    if req.full_name or req.phone or req.preferred_language:
+        u_updates = []
+        u_params = []
+        if req.full_name:
+            u_updates.append("full_name = ?")
+            u_params.append(req.full_name)
+        if req.phone:
+            u_updates.append("phone = ?")
+            u_params.append(req.phone)
+        if req.preferred_language:
+            u_updates.append("preferred_language = ?")
+            u_params.append(req.preferred_language)
+        u_params.append(user["id"])
+        execute_query(f"UPDATE users SET {', '.join(u_updates)} WHERE id = ?", u_params)
+        
+    updates = []
+    params = []
+    if req.age is not None:
+        updates.append("age = ?")
+        params.append(req.age)
+    if req.gender is not None:
+        updates.append("gender = ?")
+        params.append(req.gender)
+    if req.village is not None:
+        updates.append("village = ?")
+        params.append(req.village)
+    if req.district is not None:
+        updates.append("district = ?")
+        params.append(req.district)
+    if req.state is not None:
+        updates.append("state = ?")
+        params.append(req.state)
+    if req.pin_code is not None:
+        updates.append("pin_code = ?")
+        params.append(req.pin_code)
+    if req.emergency_contact is not None:
+        updates.append("emergency_contact = ?")
+        params.append(req.emergency_contact)
+    if req.blood_group is not None:
+        updates.append("blood_group = ?")
+        params.append(req.blood_group)
+    if req.allergies is not None:
+        updates.append("allergies = ?")
+        params.append(req.allergies)
+    if req.chronic_conditions is not None:
+        updates.append("chronic_conditions = ?")
+        params.append(req.chronic_conditions)
+        
+    if updates:
+        params.append(pat["id"])
+        execute_query(f"UPDATE patients SET {', '.join(updates)} WHERE id = ?", params)
+        
+    log_audit(user["id"], "PATIENT_PROFILE_UPDATE", "PATIENT", f"Patient profile {pat['id']} updated.")
+    
+    updated_pat = query_one("""
+        SELECT p.*, u.full_name, u.email, u.phone, u.preferred_language
+        FROM patients p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.id = ?
+    """, (pat["id"],))
+    return {"success": True, "message": "Patient profile updated successfully.", "data": updated_pat}
 
 @api_router.post("/auth/login")
 async def login(req: LoginRequest):
@@ -458,11 +616,72 @@ async def create_appointment(req: AppointmentCreate, user: dict = Depends(requir
     log_audit(user["id"], "APPOINTMENT_BOOKED", "APPOINTMENT", f"Appointment {appt_id} with Doctor {req.doctor_id}")
     return {"success": True, "message": "Appointment confirmed successfully!", "appointment_id": appt_id}
 
+@api_router.patch("/appointments/{appointment_id}/status")
+async def update_appointment_status(appointment_id: str, req: AppointmentStatusUpdate, user: dict = Depends(get_current_user)):
+    appt = query_one("SELECT * FROM appointments WHERE id = ?", (appointment_id,))
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment not found.")
+        
+    user_role = user.get("role")
+    user_id = user.get("id")
+    
+    # Object-level authorization check
+    if user_role != "ADMIN":
+        if user_role == "PATIENT":
+            p = query_one("SELECT id FROM patients WHERE user_id = ?", (user_id,))
+            if not p or p["id"] != appt["patient_id"]:
+                raise HTTPException(status_code=403, detail="Access denied: You are not the patient on this appointment.")
+        elif user_role == "DOCTOR":
+            d = query_one("SELECT id FROM doctors WHERE user_id = ?", (user_id,))
+            if not d or d["id"] != appt["doctor_id"]:
+                raise HTTPException(status_code=403, detail="Access denied: You are not the assigned doctor on this appointment.")
+        else:
+            raise HTTPException(status_code=403, detail="Access denied: Unauthorized role.")
+            
+    execute_query("UPDATE appointments SET status = ? WHERE id = ?", (req.status.upper(), appointment_id))
+    log_audit(user_id, "APPOINTMENT_STATUS_UPDATE", "APPOINTMENT", f"Appointment {appointment_id} status changed to {req.status.upper()}")
+    
+    # Notify other party
+    if user_role == "DOCTOR":
+        pat_user = query_one("SELECT user_id FROM patients WHERE id = ?", (appt["patient_id"],))
+        if pat_user:
+            notif_id = f"notif_{secrets.token_hex(6)}"
+            execute_query("""
+                INSERT INTO notifications (id, user_id, title, message, type, link)
+                VALUES (?, ?, ?, ?, 'APPOINTMENT', '/#patient-home')
+            """, (notif_id, pat_user["user_id"], f"Appointment {req.status.capitalize()}",
+                  f"Doctor updated your appointment status for {appt['appointment_date']} to {req.status.upper()}."))
+    elif user_role == "PATIENT":
+        doc_user = query_one("SELECT user_id FROM doctors WHERE id = ?", (appt["doctor_id"],))
+        if doc_user:
+            notif_id = f"notif_{secrets.token_hex(6)}"
+            execute_query("""
+                INSERT INTO notifications (id, user_id, title, message, type, link)
+                VALUES (?, ?, ?, ?, 'APPOINTMENT', '/#doctor-queue')
+            """, (notif_id, doc_user["user_id"], "Appointment Cancelled by Patient",
+                  f"Patient has updated their appointment for {appt['appointment_date']}."))
+                  
+    return {"success": True, "message": f"Appointment status updated to {req.status.upper()}."}
+
 @api_router.post("/consultations/{appointment_id}/start")
 async def start_consultation(appointment_id: str, user: dict = Depends(get_current_user)):
     appt = query_one("SELECT * FROM appointments WHERE id = ?", (appointment_id,))
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found.")
+        
+    user_role = user.get("role")
+    user_id = user.get("id")
+    if user_role != "ADMIN":
+        if user_role == "PATIENT":
+            pat = query_one("SELECT id FROM patients WHERE user_id = ?", (user_id,))
+            if not pat or pat["id"] != appt["patient_id"]:
+                raise HTTPException(status_code=403, detail="Access denied: You are not the patient on this appointment.")
+        elif user_role == "DOCTOR":
+            doc = query_one("SELECT id FROM doctors WHERE user_id = ?", (user_id,))
+            if not doc or doc["id"] != appt["doctor_id"]:
+                raise HTTPException(status_code=403, detail="Access denied: You are not the assigned doctor on this appointment.")
+        else:
+            raise HTTPException(status_code=403, detail="Access denied: Unauthorized role.")
         
     # Check if consultation already exists
     existing = query_one("SELECT * FROM consultations WHERE appointment_id = ?", (appointment_id,))
@@ -499,6 +718,20 @@ async def get_consultation(consultation_id: str, user: dict = Depends(get_curren
     if not cns:
         raise HTTPException(status_code=404, detail="Consultation not found.")
         
+    user_role = user.get("role")
+    user_id = user.get("id")
+    if user_role != "ADMIN":
+        if user_role == "PATIENT":
+            pat = query_one("SELECT id FROM patients WHERE user_id = ?", (user_id,))
+            if not pat or pat["id"] != cns["patient_id"]:
+                raise HTTPException(status_code=403, detail="Access denied: You are not the authorized patient in this consultation.")
+        elif user_role == "DOCTOR":
+            doc = query_one("SELECT id FROM doctors WHERE user_id = ?", (user_id,))
+            if not doc or doc["id"] != cns["doctor_id"]:
+                raise HTTPException(status_code=403, detail="Access denied: You are not the assigned doctor in this consultation.")
+        else:
+            raise HTTPException(status_code=403, detail="Access denied: Unauthorized role.")
+        
     # Messages
     msgs = query_all("SELECT * FROM consultation_messages WHERE consultation_id = ? ORDER BY timestamp ASC", (consultation_id,))
     # Prescription if exists
@@ -507,10 +740,15 @@ async def get_consultation(consultation_id: str, user: dict = Depends(get_curren
     return {"success": True, "data": cns, "messages": msgs, "prescription": rx}
 
 @api_router.post("/consultations/{consultation_id}/complete")
-async def complete_consultation(consultation_id: str, req: ConsultationCompleteRequest, user: dict = Depends(require_role(["DOCTOR"]))):
+async def complete_consultation(consultation_id: str, req: ConsultationCompleteRequest, user: dict = Depends(require_role(["DOCTOR", "ADMIN"]))):
     cns = query_one("SELECT * FROM consultations WHERE id = ?", (consultation_id,))
     if not cns:
         raise HTTPException(status_code=404, detail="Consultation session not found.")
+        
+    if user.get("role") == "DOCTOR":
+        doc = query_one("SELECT id FROM doctors WHERE user_id = ?", (user["id"],))
+        if not doc or doc["id"] != cns["doctor_id"]:
+            raise HTTPException(status_code=403, detail="Access denied: You are not the assigned doctor for this consultation.")
         
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     execute_query("""

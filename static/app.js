@@ -701,9 +701,12 @@ class GramCareApp {
         if (!this.activeConsultation) return;
         const cnsId = this.activeConsultation.id;
 
-        document.getElementById('call-partner-name').innerText = `Consultation with ${this.activeDoctor ? this.activeDoctor.name : 'Specialist'}`;
-        document.getElementById('call-partner-subname').innerText = this.activeDoctor ? this.activeDoctor.name : 'Attending Doctor';
+        document.getElementById('call-partner-name').innerText = `Consultation with ${this.activeDoctor ? this.activeDoctor.name : 'Patient'}`;
+        document.getElementById('call-partner-subname').innerText = this.activeDoctor ? this.activeDoctor.name : 'Patient';
         document.getElementById('chat-messages-container').innerHTML = '';
+
+        // Start Webcam (Simulated real call)
+        this.startLocalWebcam();
 
         // Connect WebSocket
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -726,6 +729,49 @@ class GramCareApp {
         };
 
         this.navigate('consultation-room');
+    }
+
+    async startLocalWebcam() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            this.localStream = stream;
+            
+            // Try to find the self video element or create one
+            let selfView = document.getElementById('self-video-element');
+            const selfViewContainer = document.getElementById('self-view-container');
+            
+            if (selfViewContainer) {
+                if (!selfView) {
+                    selfView = document.createElement('video');
+                    selfView.id = 'self-video-element';
+                    selfView.autoplay = true;
+                    selfView.muted = true;
+                    selfView.className = "w-full h-full object-cover";
+                    selfViewContainer.innerHTML = '';
+                    selfViewContainer.appendChild(selfView);
+                }
+                selfView.srcObject = stream;
+            }
+        } catch (err) {
+            console.log("Webcam access denied or unavailable.");
+        }
+    }
+
+    leaveConsultation() {
+        if (this.consultationWs) {
+            this.consultationWs.close();
+            this.consultationWs = null;
+        }
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => track.stop());
+            this.localStream = null;
+        }
+        
+        if (this.currentRole === 'DOCTOR') {
+            this.navigate('doctor-home');
+        } else {
+            this.navigate('rate-consultation');
+        }
     }
 
     sendConsultChatMessage() {
@@ -1141,6 +1187,28 @@ class GramCareApp {
     // ----------------- DOCTOR DASHBOARD -----------------
     async loadDoctorDashboard() {
         try {
+            // 1. Load doctor profile
+            const meRes = await fetch('/api/auth/me', { headers: this.getAuthHeaders() });
+            const meData = await meRes.json();
+            if (meData.success && meData.doctor_profile) {
+                const doc = meData.doctor_profile;
+                const user = meData.user;
+                document.getElementById('doc-greeting').innerText = `${user.full_name} (${doc.specialization || 'General Physician'})`;
+                
+                const badge = document.getElementById('doc-verification-badge');
+                if (doc.verification_status === 'VERIFIED') {
+                    badge.className = "bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center";
+                    badge.innerHTML = `<i class="fas fa-check-circle mr-1"></i> VERIFIED GMC`;
+                } else {
+                    badge.className = "bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center";
+                    badge.innerHTML = `<i class="fas fa-hourglass-half mr-1"></i> PENDING VERIFICATION`;
+                }
+                
+                document.getElementById('doc-metric-rating').innerHTML = `<i class="fas fa-star text-yellow-400 mr-1 text-lg"></i> ${doc.rating_avg || 5.0}`;
+                document.getElementById('doc-metric-reviews-count').innerText = `${doc.reviews_count || 0} Verified Consultations`;
+            }
+
+            // 2. Load Appointments Queue
             const res = await fetch('/api/appointments', { headers: this.getAuthHeaders() });
             const data = await res.json();
             const container = document.getElementById('doctor-queue-list');
@@ -1148,51 +1216,190 @@ class GramCareApp {
 
             const queue = data.data || [];
             document.getElementById('doc-queue-badge').innerText = `${queue.length} Total`;
+            document.getElementById('doc-metric-today').innerText = queue.length;
 
             if (queue.length === 0) {
-                container.innerHTML = `<p class="text-xs text-gray-500 italic py-3 text-center">Patient queue is currently clear.</p>`;
+                container.innerHTML = `<div class="p-6 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    <i class="fas fa-calendar-check text-3xl text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-500 font-semibold">Your queue is currently clear.</p>
+                    <p class="text-[10px] text-gray-400 mt-1">New appointments will appear here.</p>
+                </div>`;
             } else {
                 queue.forEach(a => {
                     container.innerHTML += `
-                        <div class="soft-card border-l-4 border-teal-600">
+                        <div class="soft-card border-l-4 border-blue-600 mb-3 bg-white p-3 rounded-lg shadow-sm border border-gray-100">
                             <div class="flex justify-between items-start mb-2">
                                 <div>
-                                    <h4 class="font-bold text-sm text-gray-900">${a.patient_name} (${a.age || 35}y, ${a.gender || 'M'})</h4>
-                                    <p class="text-xs text-gray-500">${a.village || 'Rampura'}, ${a.district || 'Mehsana'} • Slot: ${a.time_slot}</p>
+                                    <h4 class="font-bold text-sm text-gray-900">${a.patient_name} <span class="text-xs font-normal text-gray-500">(${a.age || '--'}y, ${a.gender || '--'})</span></h4>
+                                    <p class="text-xs text-gray-500"><i class="fas fa-map-marker-alt text-blue-500 mr-1"></i> ${a.village || 'Unknown'}, ${a.district || ''} • <span class="font-semibold text-blue-700">Slot: ${a.time_slot}</span></p>
                                 </div>
-                                <button class="bg-teal-700 hover:bg-teal-800 text-white text-xs px-3 py-1.5 rounded-lg font-bold shadow-xs" onclick="app.joinConsultation('${a.id}', '${a.patient_name}', '${this.currentUser.id}')">
-                                    Start Session
+                                <button class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-lg font-bold transition shadow-sm flex items-center" onclick="app.joinConsultation('${a.id}', '${a.patient_name}', '${this.currentUser.id}')">
+                                    <i class="fas fa-video mr-1.5"></i> Consult
                                 </button>
                             </div>
-                            <div class="bg-gray-50 p-2 rounded-lg text-xs">
-                                <span class="font-semibold text-teal-800"><i class="fas fa-notes-medical mr-1"></i> Complaint:</span>
-                                <span class="text-gray-700">${a.chief_complaint || 'Seasonal fever and cough.'}</span>
+                            <div class="bg-blue-50/50 p-2.5 rounded-lg text-xs border border-blue-100 mt-2">
+                                <span class="font-bold text-blue-800"><i class="fas fa-stethoscope mr-1"></i> Complaint:</span>
+                                <span class="text-gray-700 font-medium ml-1">${a.chief_complaint || 'General Consultation'}</span>
                             </div>
                         </div>
                     `;
                 });
             }
 
-            // Load camp requests
+            // 3. Load camp requests
             const reqRes = await fetch('/api/camp-requests');
             const reqData = await reqRes.json();
             const reqBox = document.getElementById('doc-camp-requests-list');
             reqBox.innerHTML = '';
             (reqData.data || []).slice(0, 2).forEach(r => {
                 reqBox.innerHTML += `
-                    <div class="p-2.5 bg-gray-50 rounded-lg flex justify-between items-center border border-gray-200">
+                    <div class="p-3 bg-white rounded-lg flex justify-between items-center border border-gray-200 mb-2 shadow-sm">
                         <div>
-                            <span class="font-bold text-gray-800">${r.village} (${r.expected_patients} patients)</span>
-                            <p class="text-[10px] text-gray-500">${r.camp_type} • Date: ${r.preferred_date}</p>
+                            <span class="font-bold text-gray-800 text-sm"><i class="fas fa-users text-blue-600 mr-1"></i> ${r.village}</span>
+                            <span class="text-[10px] text-gray-500 ml-1">(${r.expected_patients} expected)</span>
+                            <p class="text-[11px] text-gray-600 mt-0.5"><i class="far fa-calendar-alt text-gray-400 mr-1"></i> ${r.preferred_date}</p>
                         </div>
-                        <button class="bg-teal-700 text-white text-[10px] px-2.5 py-1 rounded font-bold" onclick="app.acceptCampRequest('${r.id}')">
-                            Accept
+                        <button class="bg-blue-100 text-blue-700 text-xs px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 transition" onclick="app.acceptCampRequest('${r.id}')">
+                            <i class="fas fa-check mr-1"></i> Accept
                         </button>
                     </div>
                 `;
             });
         } catch (e) {
             console.error(e);
+        }
+    }
+
+    async openDoctorProfileEdit() {
+        try {
+            const res = await fetch('/api/auth/me', { headers: this.getAuthHeaders() });
+            const data = await res.json();
+            if (data.success && data.doctor_profile) {
+                const doc = data.doctor_profile;
+                const user = data.user;
+                document.getElementById('edit-doc-name').value = user.full_name || '';
+                document.getElementById('edit-doc-qual').value = doc.qualification || '';
+                document.getElementById('edit-doc-spec').value = doc.specialization || '';
+                document.getElementById('edit-doc-exp').value = doc.experience_years || 0;
+                document.getElementById('edit-doc-fee').value = doc.consultation_fee || 0;
+                document.getElementById('edit-doc-languages').value = doc.languages_spoken ? JSON.parse(doc.languages_spoken).join(', ') : 'English, Hindi, Gujarati';
+                document.getElementById('edit-doc-hospital').value = doc.hospital_affiliation || '';
+                document.getElementById('edit-doc-bio').value = doc.bio || '';
+                this.navigate('doctor-profile-edit');
+            }
+        } catch (e) {
+            alert("Error loading doctor profile for editing.");
+        }
+    }
+
+    async saveDoctorProfile(e) {
+        e.preventDefault();
+        const languagesRaw = document.getElementById('edit-doc-languages').value;
+        const languagesList = languagesRaw.split(',').map(s => s.trim()).filter(Boolean);
+        
+        const payload = {
+            full_name: document.getElementById('edit-doc-name').value,
+            qualification: document.getElementById('edit-doc-qual').value,
+            specialization: document.getElementById('edit-doc-spec').value,
+            experience_years: parseInt(document.getElementById('edit-doc-exp').value) || 0,
+            consultation_fee: parseFloat(document.getElementById('edit-doc-fee').value) || 0.0,
+            languages_spoken: languagesList,
+            hospital_affiliation: document.getElementById('edit-doc-hospital').value,
+            bio: document.getElementById('edit-doc-bio').value
+        };
+
+        const btn = document.getElementById('btn-save-doc-profile');
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1.5"></i> Saving Changes...`;
+
+        try {
+            const res = await fetch('/api/doctors/profile', {
+                method: 'PATCH',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("Doctor profile successfully updated and saved to database!");
+                if (this.currentUser) {
+                    this.currentUser.full_name = payload.full_name;
+                    localStorage.setItem('gc_user', JSON.stringify(this.currentUser));
+                }
+                this.navigate('doctor-home');
+            } else {
+                alert(data.detail || "Failed to update profile.");
+            }
+        } catch (err) {
+            alert("Error saving doctor profile.");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-save mr-1.5"></i> Save Profile Changes`;
+        }
+    }
+
+    async openPatientProfileEdit() {
+        try {
+            const res = await fetch('/api/auth/me', { headers: this.getAuthHeaders() });
+            const data = await res.json();
+            if (data.success && data.patient_profile) {
+                const pat = data.patient_profile;
+                const user = data.user;
+                document.getElementById('edit-pat-name').value = user.full_name || '';
+                document.getElementById('edit-pat-age').value = pat.age || 30;
+                document.getElementById('edit-pat-gender').value = pat.gender || 'Other';
+                document.getElementById('edit-pat-village').value = pat.village || '';
+                document.getElementById('edit-pat-district').value = pat.district || '';
+                document.getElementById('edit-pat-blood').value = pat.blood_group || '';
+                document.getElementById('edit-pat-emergency').value = pat.emergency_contact || '';
+                document.getElementById('edit-pat-allergies').value = pat.allergies || '';
+                document.getElementById('edit-pat-chronic').value = pat.chronic_conditions || '';
+                this.navigate('patient-profile-edit');
+            }
+        } catch (e) {
+            alert("Error loading patient health profile.");
+        }
+    }
+
+    async savePatientProfile(e) {
+        e.preventDefault();
+        const payload = {
+            full_name: document.getElementById('edit-pat-name').value,
+            age: parseInt(document.getElementById('edit-pat-age').value) || 30,
+            gender: document.getElementById('edit-pat-gender').value,
+            village: document.getElementById('edit-pat-village').value,
+            district: document.getElementById('edit-pat-district').value,
+            blood_group: document.getElementById('edit-pat-blood').value,
+            emergency_contact: document.getElementById('edit-pat-emergency').value,
+            allergies: document.getElementById('edit-pat-allergies').value,
+            chronic_conditions: document.getElementById('edit-pat-chronic').value
+        };
+
+        const btn = document.getElementById('btn-save-pat-profile');
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1.5"></i> Saving...`;
+
+        try {
+            const res = await fetch('/api/patients/profile', {
+                method: 'PATCH',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("Health profile successfully updated!");
+                if (this.currentUser) {
+                    this.currentUser.full_name = payload.full_name;
+                    localStorage.setItem('gc_user', JSON.stringify(this.currentUser));
+                }
+                this.navigate('patient-home');
+            } else {
+                alert(data.detail || "Failed to update profile.");
+            }
+        } catch (err) {
+            alert("Error saving patient profile.");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-save mr-1.5"></i> Save Health Profile`;
         }
     }
 

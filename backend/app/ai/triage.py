@@ -181,9 +181,9 @@ def perform_nlp_triage(
     ]
 
     disclaimer = (
-        "⚠️ Important Medical Safety Notice: This is an AI-assisted preliminary health assessment for triage purposes only. "
-        "It does NOT constitute a definitive medical diagnosis, prescription, or clinical advice. "
-        "Always consult a qualified healthcare professional for medical diagnosis and treatment."
+        "⚠️ Academic Prototype Preliminary Triage: This clinical entity extraction protocol provides preliminary urgency stratification. "
+        "It does NOT constitute a certified medical diagnosis, prescription, or clinical treatment advice. "
+        "In case of severe or deteriorating symptoms, immediately consult a qualified physician or contact emergency medical services (108)."
     )
 
     return {
@@ -198,7 +198,9 @@ def perform_nlp_triage(
         "emergency_helpline": emergency_check.get("emergency_helpline"),
         "recommended_next_step": recommended_action,
         "questions_for_doctor": questions_for_doctor,
-        "confidence": 0.92,
+        "confidence": 0.88,
+        "confidence_level": "Protocol-Based Clinical Match",
+        "protocol_version": "Vernacular Clinical Entity Extraction Protocol v1.0 (Academic Prototype)",
         "language_detected": lang,
         "disclaimer": disclaimer
     }
