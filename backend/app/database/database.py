@@ -5,6 +5,17 @@ from contextlib import contextmanager
 
 DB_PATH = os.environ.get("GRAMCARE_DB_PATH", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "gramcare.db"))
 
+# Ensure the directory exists (fixes Render deployment if disk is missing)
+db_dir = os.path.dirname(DB_PATH)
+if db_dir:
+    try:
+        os.makedirs(db_dir, exist_ok=True)
+    except PermissionError:
+        print(f"⚠️ WARNING: Permission denied creating {db_dir}. Did you forget to add the Persistent Disk in Render?")
+        # Fallback to the project root directory
+        DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "gramcare.db")
+        print(f"⚠️ Falling back to: {DB_PATH}")
+
 def get_connection():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
